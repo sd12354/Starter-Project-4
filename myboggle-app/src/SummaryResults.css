@@ -1,0 +1,22 @@
+.Summary {
+  margin: 30px auto;
+  padding: 20px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  max-width: 500px;
+}
+
+.Summary h2 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.Summary div {
+  margin: 10px 0;
+}
+
+.Summary li {
+  list-style: none;
+  font-size: 18px;
+  color: #555;
+}

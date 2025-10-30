@@ -1,0 +1,12 @@
+.Guess-input {
+  margin: 30px auto;
+  max-width: 500px;
+}
+
+.label-text {
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #1976d2;
+  min-height: 30px;
+}

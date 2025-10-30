@@ -1,0 +1,24 @@
+.Board-div {
+  margin: 30px auto;
+  max-width: 600px;
+}
+
+.Tile {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 5px;
+}
+
+.Tile .MuiPaper-root {
+  padding: 20px;
+  font-size: 24px;
+  font-weight: bold;
+  min-width: 60px;
+  min-height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
