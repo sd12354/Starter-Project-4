@@ -1,9 +1,9 @@
 import React from 'react';
-import Button from "@material-ui/core/Button";
-import MenuItem from '@material-ui/core/MenuItem';
-import FormHelperText from '@material-ui/core/FormHelperText';
-import Select from '@material-ui/core/Select';
-import FormControl from '@material-ui/core/FormControl';
+import Button from "@mui/material/Button";
+import MenuItem from '@mui/material/MenuItem';
+import FormHelperText from '@mui/material/FormHelperText';
+import Select from '@mui/material/Select';
+import FormControl from '@mui/material/FormControl';
 import './ToggleGameState.css';
 
 function ToggleGameState({ 
@@ -13,7 +13,8 @@ function ToggleGameState({
   onGridSizeChange, 
   puzzles, 
   selectedPuzzle, 
-  onPuzzleSelect 
+  onPuzzleSelect,
+  onLoadChallenge
 }) {
   const buttonText = gameStarted ? "END GAME" : "START";
 
@@ -28,13 +29,25 @@ function ToggleGameState({
 
   return (
     <div className="Toggle-game-state">
-      <Button 
-        variant="outlined" 
-        color="primary"
-        onClick={onStartStop}
-      >
-        {buttonText}
-      </Button>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+        <Button 
+          variant="outlined" 
+          color="primary"
+          onClick={onStartStop}
+        >
+          {buttonText}
+        </Button>
+        
+        {!gameStarted && (
+          <Button 
+            variant="outlined" 
+            color="secondary"
+            onClick={onLoadChallenge}
+          >
+            Load Challenge
+          </Button>
+        )}
+      </div>
 
       {!gameStarted && (
         <div className="Input-select-size">

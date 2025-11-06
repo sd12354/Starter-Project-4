@@ -1,0 +1,59 @@
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+db.sqlite3
+
+# Django
+*.log
+local_settings.py
+staticfiles/
+
+# Firebase
+serviceAccountKey.json
+.env
+.env.local
+
+# React
+myboggle-app/node_modules/
+myboggle-app/build/
+myboggle-app/.env.local
+myboggle-app/.env.development.local
+myboggle-app/.env.test.local
+myboggle-app/.env.production.local
+myboggle-app/npm-debug.log*
+myboggle-app/yarn-debug.log*
+myboggle-app/yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Heroku
+.heroku/

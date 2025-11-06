@@ -1,5 +1,5 @@
-import Grid from "@material-ui/core/Grid";
-import Paper from "@material-ui/core/Paper";
+import Grid from "@mui/material/Grid";
+import Paper from "@mui/material/Paper";
 import React from 'react';
 import './Board.css';
 
@@ -12,10 +12,10 @@ function Board({ grid, gameStarted }) {
 
   return (
     <div className="Board-div">
-      <Grid container justify="center">
+      <Grid container justifyContent="center">
         {grid.map((row, rowIndex) => (
           <Grid item xs={12} key={rowIndex}>
-            <Grid container spacing={1} justify="space-around">
+            <Grid container spacing={1} justifyContent="space-around">
               {row.map((letter, colIndex) => (
                 <Grid 
                   item 

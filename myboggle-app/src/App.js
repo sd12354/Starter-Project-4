@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
+import { api } from './api';
 import Board from './Board.js';
 import GuessInput from './GuessInput.js';
 import FoundSolutions from './FoundSolutions.js';
 import SummaryResults from './SummaryResults.js';
 import ToggleGameState from './ToggleGameState.js';
+import ChallengeLoader from './ChallengeLoader.js';
+import Auth from './Auth.js';
 import './App.css';
 
 // Simple Boggle Solver (JavaScript version)
@@ -120,6 +125,18 @@ function App() {
   const [totalTime, setTotalTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dictionary, setDictionary] = useState([]);
+  const [dictionarySet, setDictionarySet] = useState(new Set());
+  const [showChallengeLoader, setShowChallengeLoader] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState(null);
+  const [user, setUser] = useState(null);
+
+  // Set up auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Load dictionary and puzzles on mount
   useEffect(() => {
@@ -128,12 +145,24 @@ function App() {
         // Load dictionary
         const dictResponse = await fetch('/full-wordlist.json');
         const dictData = await dictResponse.json();
-        setDictionary(dictData.words || []);
+        const words = dictData.words || [];
+        setDictionary(words);
+        
+        // Create a Set for fast dictionary lookups
+        const dictSet = new Set(words.map(word => word.toUpperCase()));
+        setDictionarySet(dictSet);
+        
+        console.log(`Full word list loaded: ${words.length} words from dictionary`);
 
-        // Load puzzles
-        const puzzlesResponse = await fetch('/Boggle_Solutions_Endpoint.json');
-        const puzzlesData = await puzzlesResponse.json();
-        setPuzzles(puzzlesData || {});
+        // Load puzzles (optional - for backward compatibility)
+        try {
+          const puzzlesResponse = await fetch('/Boggle_Solutions_Endpoint.json');
+          const puzzlesData = await puzzlesResponse.json();
+          setPuzzles(puzzlesData || {});
+        } catch (error) {
+          console.warn('Puzzles file not found, skipping');
+          setPuzzles({});
+        }
 
         setLoading(false);
       } catch (error) {
@@ -153,22 +182,42 @@ function App() {
     }
   };
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     setLoading(true);
     let newGrid;
     let solutions;
 
     try {
-      if (selectedPuzzle !== null && puzzles[selectedPuzzle]) {
+      // Ensure dictionary is loaded
+      if (!dictionary || dictionary.length === 0) {
+        setMessage('Dictionary not loaded yet. Please wait...');
+        setLoading(false);
+        return;
+      }
+
+      if (selectedChallenge) {
+        // Use challenge from Django API
+        newGrid = selectedChallenge.grid;
+        setGridSize(selectedChallenge.size);
+        // Use full dictionary to find all possible words
+        const solver = new BoggleSolver(newGrid, dictionary);
+        solutions = solver.getSolution();
+        console.log(`Using full dictionary (${dictionary.length} words) to solve challenge "${selectedChallenge.name}". Found ${solutions.length} valid words.`);
+      } else if (selectedPuzzle !== null && puzzles[selectedPuzzle]) {
         // Use pre-made puzzle
+        setSelectedChallenge(null);
         const puzzle = puzzles[selectedPuzzle];
         newGrid = puzzle.grid;
-        solutions = puzzle.solutions.map(w => w.toUpperCase());
+        const solver = new BoggleSolver(newGrid, dictionary);
+        solutions = solver.getSolution();
+        console.log(`Using full dictionary (${dictionary.length} words) to solve puzzle. Found ${solutions.length} valid words.`);
       } else {
         // Generate random puzzle
+        setSelectedChallenge(null);
         newGrid = generateRandomGrid(gridSize);
         const solver = new BoggleSolver(newGrid, dictionary);
         solutions = solver.getSolution();
+        console.log(`Using full dictionary (${dictionary.length} words) to solve random grid. Found ${solutions.length} valid words.`);
       }
 
       setGrid(newGrid);
@@ -187,12 +236,39 @@ function App() {
     }
   };
 
-  const handleEndGame = () => {
+  const handleEndGame = async () => {
     const endTime = Date.now();
     const timeElapsed = (endTime - startTime) / 1000;
     setTotalTime(timeElapsed);
     setGameEnded(true);
     setGameStarted(false);
+
+    // Automatically save score to Django API if playing a challenge and user is signed in
+    if (selectedChallenge && user) {
+      try {
+        const scoreData = {
+          challengeId: selectedChallenge.id,
+          challengeName: selectedChallenge.name,
+          userId: user.uid,
+          userName: user.displayName || user.email,
+          userEmail: user.email,
+          userPhotoURL: user.photoURL || null,
+          score: foundWords.length,
+          foundWordsCount: foundWords.length,
+          totalWords: allValidWords.length,
+          timeElapsed: timeElapsed,
+        };
+
+        await api.submitScore(scoreData);
+        console.log('Score saved to leaderboard:', scoreData);
+        setMessage(`Score saved! Found ${foundWords.length} words.`);
+      } catch (error) {
+        console.error('Error saving score to leaderboard:', error);
+        // Don't show error to user as it's automatic
+      }
+    } else if (selectedChallenge && !user) {
+      console.log('Score not saved: User not signed in');
+    }
   };
 
   // Handle grid size change
@@ -203,9 +279,25 @@ function App() {
   // Handle puzzle selection
   const handlePuzzleSelect = (puzzleKey) => {
     setSelectedPuzzle(puzzleKey);
+    setSelectedChallenge(null); // Clear challenge when selecting puzzle
     if (puzzleKey !== null && puzzles[puzzleKey]) {
       setGridSize(puzzles[puzzleKey].size);
     }
+  };
+
+  // Handle challenge loading from Django API
+  const handleLoadChallenge = () => {
+    setShowChallengeLoader(true);
+  };
+
+  const handleChallengeSelect = (challenge) => {
+    setSelectedChallenge(challenge);
+    setSelectedPuzzle(null); // Clear puzzle selection when selecting challenge
+    setGridSize(challenge.size);
+    // Auto-start the game with the selected challenge
+    setTimeout(() => {
+      handleStartGame();
+    }, 100);
   };
 
   // Handle guess submission
@@ -214,15 +306,29 @@ function App() {
     
     if (!guess) return;
 
+    // Check minimum word length (Boggle rules: at least 3 letters)
+    if (guess.length < 3) {
+      setMessage(`Words must be at least 3 letters long`);
+      setTimeout(() => setMessage(''), 2000);
+      setCurrentGuess('');
+      return;
+    }
+
     if (foundWords.includes(guess)) {
       setMessage(`Already found "${guess}"!`);
       setTimeout(() => setMessage(''), 2000);
-    } else if (allValidWords.includes(guess)) {
-      setFoundWords([...foundWords, guess]);
-      setMessage(`Correct! Words found: ${foundWords.length + 1}`);
+    } else if (!dictionarySet.has(guess)) {
+      // First check if word exists in full dictionary
+      setMessage(`"${guess}" is not a valid word in the dictionary`);
+      setTimeout(() => setMessage(''), 2000);
+    } else if (!allValidWords.includes(guess)) {
+      // Word is in dictionary but can't be formed from current grid
+      setMessage(`"${guess}" is a valid word but cannot be formed from this grid`);
       setTimeout(() => setMessage(''), 2000);
     } else {
-      setMessage(`"${guess}" is not a valid word`);
+      // Word is valid and can be formed from grid
+      setFoundWords([...foundWords, guess]);
+      setMessage(`Correct! Words found: ${foundWords.length + 1}`);
       setTimeout(() => setMessage(''), 2000);
     }
     
@@ -242,7 +348,10 @@ function App() {
 
   return (
     <div className="App">
-      <h1>Boggle Solver</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1>Boggle Solver</h1>
+        <Auth user={user} onAuthChange={setUser} />
+      </div>
 
       <ToggleGameState
         gameStarted={gameStarted}
@@ -252,6 +361,13 @@ function App() {
         puzzles={puzzles}
         selectedPuzzle={selectedPuzzle}
         onPuzzleSelect={handlePuzzleSelect}
+        onLoadChallenge={handleLoadChallenge}
+      />
+
+      <ChallengeLoader
+        open={showChallengeLoader}
+        onClose={() => setShowChallengeLoader(false)}
+        onSelectChallenge={handleChallengeSelect}
       />
 
       <Board 
