@@ -33,11 +33,20 @@ function ChallengeLoader({ open, onClose, onSelectChallenge }) {
     setError(null);
     
     try {
+      console.log('Loading challenges...');
       const challengesList = await api.getChallenges();
-      setChallenges(challengesList);
+      console.log('Challenges received:', challengesList);
+      if (Array.isArray(challengesList)) {
+        setChallenges(challengesList);
+      } else {
+        throw new Error('Invalid response format: expected array');
+      }
     } catch (err) {
       console.error('Error loading challenges:', err);
-      setError('Failed to load challenges. Make sure Django backend is running on http://localhost:8000');
+      const errorMessage = err.message.includes('Failed to fetch') 
+        ? 'Unable to connect to API server. The Heroku app may be down (502 error). Check Heroku logs: heroku logs --tail'
+        : `Failed to load challenges: ${err.message}`;
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

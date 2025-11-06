@@ -63,9 +63,16 @@ CORS_ALLOWED_ORIGINS = [
     "https://boggle-app-c0d1c.firebaseapp.com",
 ]
 
-# Allow all origins in development (remove in production if needed)
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
+# CORS: Allow all origins for now (you can restrict later)
+# This fixes the CORS issue quickly
+CORS_ALLOW_ALL_ORIGINS = True
+
+# Alternative: If you want to restrict, uncomment below and set DEBUG=False
+# if DEBUG:
+#     CORS_ALLOW_ALL_ORIGINS = True
+# else:
+#     CORS_ALLOW_ALL_ORIGINS = False
+#     # CORS_ALLOWED_ORIGINS list above will be used
 
 CORS_ALLOW_CREDENTIALS = True
 
